@@ -23,3 +23,21 @@ assert.throws(()=>ft(d,p,'defence',2000,'equal'));
 assert.throws(()=>ft(d,p,'defence',NaN,'borrow'));
 const saved=ft(d,p,'defence',-10,'sector','education');assert(saved.next.spend.education===10);
 console.log('PASS: funding reconciliation, repeat edits, reversal, savings allocation, insufficient funds and invalid inputs.');
+vm.runInContext('const emptyPolicy=()=>({tax:{},spend:{},custom:[]});'+fs.readFileSync(dir+'scenarios.js','utf8')+';globalThis.presets={SCENARIOS,scenarioPolicy};',ctx);
+const {SCENARIOS,scenarioPolicy}=ctx.presets;
+assert.strictEqual(SCENARIOS.length,7);
+for(const preset of SCENARIOS){
+ const proposed=scenarioPolicy(preset,d),budget=inputs(d,proposed),path=simulate(d,proposed,{...DEFAULTS,pension:preset.pension},10);
+ assert(Object.values(budget.spending).every(Number.isFinite));
+ assert(budget.revenues.every(row=>Number.isFinite(row.amount)));
+ assert(path.every(row=>Number.isFinite(row.debt)&&Number.isFinite(row.gdp)&&row.gdp>0));
+}
+for(const historical of DATA)for(const preset of SCENARIOS){
+ const proposed=scenarioPolicy(preset,historical),path=simulate(historical,proposed,{...DEFAULTS,pension:preset.pension},10);
+ assert(path.every(row=>Number.isFinite(row.debt)&&Number.isFinite(row.gdp)&&row.gdp>0));
+}
+assert(Object.keys(scenarioPolicy(SCENARIOS.find(x=>x.id==='welfare'),DATA[0]).tax).length>0);
+assert(scenarioPolicy(SCENARIOS.find(x=>x.id==='austerity'),d).spend.health<0);
+assert(scenarioPolicy(SCENARIOS.find(x=>x.id==='socialist'),d).spend.health>0);
+assert(scenarioPolicy(SCENARIOS.find(x=>x.id==='war'),d).spend.defence>scenarioPolicy(SCENARIOS.find(x=>x.id==='militarist'),d).spend.defence);
+console.log('PASS: seven preset packages produce finite 10-year paths across all 36 baselines and preserve their defining policy direction.');

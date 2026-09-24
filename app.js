@@ -41,7 +41,7 @@ function render(){
  $('#balanceBreakdown').innerHTML=`<div class="budget-line"><span>Public debt</span><strong>${unit(d.debt)}</strong></div><div class="budget-line"><span>Debt / GDP¹</span><strong>${fmt(d.debt/(d.debtGdpDenominator||d.gdp)*100)}%</strong></div><div class="budget-line"><span>Gross investment</span><strong>${unit(d.investment)}</strong></div>`;
  const effect=def-(d.spending-d.receipts);$('#policyEffect').textContent=count()?(Math.abs(effect)<1e-7?'No extra borrowing initially':`${cash(Math.abs(effect))} ${effect>=0?'extra borrowing':'less borrowing'}/year`):'Start with one change.';
  $('#policyHint').textContent=count()?'Immediate cost, before economic feedback. Run time to see the longer view.':'Select a revenue or spending card to adjust it.';
- renderFunding();renderExplorer();$('#changeCount').textContent=count();renderTimeline();renderComparison();if(view==='outlook')renderOutlook();if(view==='debt')renderDebt();
+ renderFunding();renderExplorer();renderScenarios();$('#changeCount').textContent=count();renderTimeline();renderComparison();if(view==='outlook')renderOutlook();if(view==='debt')renderDebt();
  $$('.budget-row').forEach(b=>b.onclick=()=>edit(b.dataset.kind,b.dataset.id));
 }
 function shortName(n){return ({'Pay as your earn (PAYE) income tax':'PAYE income tax','Self assessed (SA) income tax':'Self-assessment income tax','National insurance contributions (NICs)':'National Insurance','VAT (net of VAT refunds)':'VAT','Onshore corporation tax (includes Bank Surcharge and EGL)3':'Corporation tax'})[n]||n.replace(/[123]$/,'');}
