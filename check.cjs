@@ -58,9 +58,10 @@ assert(rateStress.some(r=>r.householdStress>45),'high rates should propagate int
 assert(debtStress.at(-1).sterlingIndex<100,'inflation and risk should put pressure on sterling');
 assert(debtStress.every(r=>r.unemployment>=2&&r.unemployment<=25&&r.marketConfidence>=0&&r.marketConfidence<=100));
 console.log('PASS: capacity, monetary, debt-risk, targeting, seeded shocks and financial-stress feedbacks.');
-vm.runInContext('var settings={...DEFAULTS};'+fs.readFileSync(dir+'gameplay.js','utf8')+';globalThis.gameRules={economicConditions};',ctx);
+vm.runInContext('var settings={...DEFAULTS},policy={tax:{},spend:{},custom:[]};function datum(){return DATA.find(x=>x.year===2024)};'+fs.readFileSync(dir+'gameplay.js','utf8')+';globalThis.gameRules={economicConditions,immediatePolicyEvents};',ctx);
 const crisisRows=debtStress.map(x=>({...x}));crisisRows[1].inflation=55;crisisRows[1].growth=-6;crisisRows[1].unemployment=13;crisisRows[1].bankStress=80;
 const labels=ctx.gameRules.economicConditions(crisisRows).map(x=>x.id);
 for(const id of ['hyperinflation-risk','depression','banking-crisis','debt-crisis'])assert(labels.includes(id),id+' should be detectable');
 const healthy=simulate(d,p,{...DEFAULTS,growth:2,inflation:2},5);assert(ctx.gameRules.economicConditions(healthy).some(x=>x.id==='soft-landing'));
+assert(ctx.gameRules.immediatePolicyEvents(d,{tax:{},spend:{defence:500},custom:[]}).some(x=>x.id==='instant-fiscal-crash'&&x.severe));
 console.log('PASS: game regime rules detect systemic losses and positive soft landings.');
