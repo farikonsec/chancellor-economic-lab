@@ -1,0 +1,31 @@
+/* Final interaction cues: short, purposeful pulses only. */
+.scenario-outcomes .good-number{color:#16715f}
+.scenario-outcomes .bad-number{color:#b74e3a}
+.game-hud.missed em{background:#a06b24}
+.lab-legend{display:flex;align-items:center;gap:14px;padding:9px 26px;border-bottom:1px solid #e0e9e9;background:#fbfdfc;color:#526777;font:10px/1.2 monospace;flex-wrap:wrap}
+.lab-legend span{display:inline-flex;align-items:center;gap:5px}
+.lab-legend i,.lab-legend b{display:inline-block;width:9px;height:9px;border-radius:50%}
+.legend-policy{background:#218779}.legend-funding{background:#d79b35}.legend-economy{background:#627bc2}.legend-finance{background:#bd6b4b}.legend-good{background:#16806b}.legend-bad{background:#c6533f}
+.lab-legend small{margin-left:auto;color:#687b86}
+.circuit{width:1200px;max-width:100%;margin:0 auto;box-sizing:border-box;padding-top:24px;padding-bottom:28px}
+.circuit-nodes{gap:28px}
+.circuit-node .signal.good{color:#16715f}.circuit-node .signal.bad{color:#b74e3a}
+.consequence.critical{animation:critical-flash .75s ease-in-out 3}
+.attention-pulse{animation:attention-pulse 1.1s ease-out 3}
+@keyframes attention-pulse{
+  0%,100%{box-shadow:0 0 0 0 #c68a3270}
+  50%{box-shadow:0 0 0 8px #c68a3200}
+}
+@keyframes critical-flash{
+  0%,100%{background:#fff8f5}
+  50%{background:#ffd9cd}
+}
+@media(prefers-reduced-motion:reduce){
+  .attention-pulse,.consequence.critical{animation:none}
+}
+@media(max-width:760px){
+  .lab-legend{padding:9px 15px;gap:9px}
+  .lab-legend small{width:100%;margin-left:0}
+  .circuit{max-width:none}
+  .circuit-nodes{gap:18px}
+}

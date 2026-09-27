@@ -22,6 +22,7 @@ function lineSvg(values,color,w=900,h=45,selected=year,years=DATA.map(d=>d.year)
 }
 function render(){
  policy.hidden=settings.hidden; const d=datum(),i=inputs(d,policy),def=i.total-i.revenue;
+ $('#run').classList.toggle('attention-pulse',count()>0&&!result);
  $('#fy').textContent=fy(year);$('#government').textContent=party(year)+(year===1997?' · transition year':year===2010||year===2015||year===2024?' · transition year':'');
  $('#mode').textContent=count()?'Your policy scenario':year>=2025?'OBR forecast baseline':'Historical baseline';$('#mode').classList.toggle('sim',!!count()||year>=2025);
  $('#periodCaption').textContent='Grow the economy. Keep your mandate. Or crash the country’s finances.';
