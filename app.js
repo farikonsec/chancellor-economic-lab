@@ -24,7 +24,7 @@ function render(){
  policy.hidden=settings.hidden; const d=datum(),i=inputs(d,policy),def=i.total-i.revenue;
  $('#fy').textContent=fy(year);$('#government').textContent=party(year)+(year===1997?' · transition year':year===2010||year===2015||year===2024?' · transition year':'');
  $('#mode').textContent=count()?'Your policy scenario':year>=2025?'OBR forecast baseline':'Historical baseline';$('#mode').classList.toggle('sim',!!count()||year>=2025);
- $('#periodCaption').textContent=`${year>=2025?'Forecast':'Recorded'} budget totals. Your choices start here.`;
+ $('#periodCaption').textContent='Grow the economy. Keep your mandate. Or crash the country’s finances.';
  $('#selectedYear').textContent=year;$('#yearSlider').value=year;
  const specs=[['Real GDP growth',d.growth,'%','Calendar year · World Bank','growth','#547adc'],['CPI inflation',d.inflation,'%','Annual average · ONS','inflation','#d89849'],['Bank Rate',d.rate,'%','Year-end · Bank of England','rate','#9682bb'],['Sterling / US dollar',d.fx,'','USD per £1 · annual average','fx','#479b92'],['Population',d.population?d.population/1e6:null,'m','Calendar year · World Bank','population','#879baa']];
  $('#metrics').innerHTML=specs.map(([name,val,suffix,note,key,color])=>`<div class="metric"><div class="metric-label">${name}<span>↗</span></div><div class="metric-value">${val==null?'—':fmt(val,key==='fx'||key==='rate'?2:1)+suffix}</div><div class="metric-foot">${val==null?'Not available in imported series':note}</div>${lineSvg(DATA.filter(x=>x.year<=year).slice(-10).map(x=>x[key]),color,70,25)}</div>`).join('');
