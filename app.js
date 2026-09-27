@@ -122,7 +122,8 @@ $('#addTimelines').onclick=openTrackPicker;$('#consumerPrices').onclick=()=>{ope
 $('#pin').onclick=()=>{pinned=pinned===null?year:null;$('#pin').textContent=pinned===null?'Pin to compare':'Unpin '+pinned;renderComparison();};
 $('#yearSlider').oninput=e=>setYear(+e.target.value);$('#prev').onclick=()=>setYear(year-1);$('#next').onclick=()=>setYear(year+1);$('#zoom').onchange=renderTimeline;$('#units').onchange=render;
 $$('.nav').forEach(b=>b.onclick=()=>showView(b.dataset.view));$('#sources').onclick=sources;$('#disclaimer').onclick=sources;$('#assumptions').onclick=openSettings;$('#newTax').onclick=()=>editCustom();$('#review').onclick=review;$('#run').onclick=run;
-$('#reset').onclick=()=>{policy=emptyPolicy();settings={...DEFAULTS};result=null;baseline=null;activeMission='sandbox';missionsOpen=true;render();toast('Budget restored to baseline');};
+function startAgain(){policy=emptyPolicy();settings={...DEFAULTS};result=null;baseline=null;activeMission='sandbox';missionsOpen=true;horizon=5;$('#run').textContent='▶ Run 5 years';render();showView('budget');toast('New mandate started');}
+$('#reset').onclick=startAgain;
 $('#nhsPreset').onclick=()=>editSpending('health',(policy.spend.health||0)+10);
 $('#pensionPreset').onclick=()=>{settings.pension=settings.pension==='triple'?'earnings':'triple';result=null;render();toast(settings.pension==='earnings'?'Pensions now rise with earnings':'Triple lock restored');};
 $('#drawer').addEventListener('click',e=>{if(e.target===$('#drawer')&&e.clientX<$('#drawer').getBoundingClientRect().left)$('#drawer').close();});
