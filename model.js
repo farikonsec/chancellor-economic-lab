@@ -1,5 +1,5 @@
 /* Transparent educational model. All monetary quantities £bn. */
-const DEFAULTS={method:'obr',capitalShare:.5,multiplierScale:1,growthSigma:.75,inflationSigma:1,yieldSigma:1,seed:2026,growth:1.5,inflation:2,yield:4,maturity:14,multiplier:.6,taxResponse:.15,investmentReturn:.08,healthReturn:.025,births:10,deathWorking:2,deathOld:40,migration:300000,wages:2.5,pension:'triple',hidden:0};
+const DEFAULTS={method:'obr',capitalShare:.5,multiplierScale:1,outputGap:0,targeting:'broad',growthSigma:.75,inflationSigma:1,yieldSigma:1,seed:2026,shockMode:'none',growth:1.5,inflation:2,yield:4,maturity:14,multiplier:.6,taxResponse:.15,investmentReturn:.08,healthReturn:.025,inflationTarget:2,neutralRate:3,monetaryResponse:.5,monetaryDrag:.08,debtRiskSlope:.02,unemployment:4.5,okunResponse:.4,fxPassThrough:.12,births:10,deathWorking:2,deathOld:40,migration:300000,wages:2.5,pension:'triple',hidden:0};
 const SECTORS=[['health','Health','#2d8b9c'],['social','Social protection','#a48ac9'],['education','Education','#6c91d6'],['defence','Defence','#778ca9'],['economic','Economy & transport','#deaa5d'],['order','Police & justice','#79a799'],['housing','Housing & communities','#c09174'],['environment','Environment','#6ca580'],['culture','Culture & recreation','#bc8fba'],['aid','Foreign economic aid','#af97d4'],['general','General public services','#98a4b1'],['residual','Accounting reconciliation','#aeb7c1']];
 const sum=xs=>xs.reduce((a,b)=>a+b,0);
 function baseSpending(d){
@@ -22,18 +22,31 @@ function simulate(d,p,settings,years){
  let young=pop*(d.young||17.5)/100,old=pop*(d.old||19)/100,working=pop-young-old;
  const initOld=old,initWorking=working;
  let gdp=d.gdp,realGdp=d.gdp,debt=d.debt,price=1,effective=d.interest/d.debt,prevGdp=d.gdp,rows=[];
+ let bankRate=d.rate??s.neutralRate;const initialBankRate=bankRate;
+ let unemployment=s.unemployment,sterlingIndex=100,bankStress=8,householdStress=8,marketConfidence=75,priorBorrowingRatio=d.borrowing/d.gdp*100;
+ let shockSeed=(s.seed>>>0)||1;const random=()=>{shockSeed=(Math.imul(1664525,shockSeed)+1013904223)>>>0;return(shockSeed+.5)/4294967296;};
  let pension=d.pensions??base.spending.social*.5; let baseNonPension=base.spending.social-pension;
  const taxChange=changed.revenue-base.revenue;
  const spendChange=changed.total-base.total;
  for(let t=0;t<=years;t++){
   const population=young+working+old;
+  let shockGrowth=0,shockInflation=0,shockEvent='';
+  if(t>0&&s.shockMode==='events'){
+   const draw=random(),size=random();
+   if(draw<.08){shockGrowth=-(1+size);shockInflation=-.35;shockEvent='Global downturn';}
+   else if(draw<.13){shockGrowth=-.35-.35*size;shockInflation=1+size;shockEvent='Energy-price shock';}
+   else if(draw<.18){shockGrowth=.35+.35*size;shockInflation=-.15;shockEvent='Productivity surprise';}
+  }
   const demand=s.method==='obr'?fiscalLevel(d,p,s,t):(t===0?0:(spendChange-s.multiplier*.5*taxChange)/d.gdp*s.multiplier*Math.exp(-(t-1)/3));
   if(1+demand<=0)throw new RangeError('Policy shock exceeds this model’s valid range. Reduce the tax or spending change.');
   const priorDemand=s.method==='obr'?fiscalLevel(d,p,s,t-1):0;
   const delayed=Math.min(Math.max(t-2,0)/5,1);
   const supply=(p.spend.economic||0)/d.gdp*s.investmentReturn*delayed+(p.spend.health||0)/d.gdp*s.healthReturn*delayed;
-  let growth=t===0?(d.growth??s.growth):s.growth+100*demand+100*supply;
-  const inflation=t===0?(d.inflation??s.inflation):Math.max(-2,s.inflation+30*demand);
+  const financialDrag=t===0?0:Math.max(0,bankStress-45)*.035+Math.max(0,householdStress-55)*.02;
+  const fxInflation=t===0?0:Math.max(0,100-sterlingIndex)*s.fxPassThrough/10;
+  const monetaryDrag=t===0?0:Math.max(0,bankRate-s.neutralRate)*s.monetaryDrag;
+  let growth=t===0?(d.growth??s.growth):s.growth+100*demand+100*supply+shockGrowth-monetaryDrag-financialDrag;
+  const inflation=t===0?(d.inflation??s.inflation):Math.max(-2,s.inflation+30*demand+shockInflation+fxInflation);
   if(t>0){
    const prevWorking=working;
    const ageIn=young/15,ageOut=working/50;
@@ -43,7 +56,7 @@ function simulate(d,p,settings,years){
    old=Math.max(1,old+ageOut-old*s.deathOld/1000+s.migration*.05);
    const labourGrowth=(working/prevWorking-1)*.6;
    const oldReal=realGdp;
-   realGdp*=s.method==='obr'?(1+s.growth/100+labourGrowth+supply)*(1+demand)/(1+priorDemand):1+growth/100+labourGrowth;
+   realGdp*=s.method==='obr'?(1+(s.growth+shockGrowth-monetaryDrag)/100+labourGrowth+supply)*(1+demand)/(1+priorDemand):1+growth/100+labourGrowth;
    if(!Number.isFinite(realGdp)||realGdp<=0)throw new RangeError('These assumptions exceed the model’s valid range. Reduce the policy shock or adjust growth.');
    growth=(realGdp/oldReal-1)*100;
    price*=1+inflation/100;gdp=realGdp*price;
@@ -59,7 +72,11 @@ function simulate(d,p,settings,years){
   categories.social=(pension*old/initOld+baseNonPension*price*nPop/pop)+(p.spend.social||0)*price*nPop/pop;
   const behavioural=t===0?0:Math.max(0,taxChange)*s.taxResponse*price;
   const receipts=changed.revenue*gdp/d.gdp-behavioural;
-  if(t>0)effective+=(s.yield/100-effective)/s.maturity;
+  if(t>0){const policyTarget=Math.max(0,Math.min(15,s.neutralRate+s.monetaryResponse*(inflation-s.inflationTarget)));bankRate=.65*bankRate+.35*policyTarget;}
+  const debtRatio=gdp>0?debt/gdp*100:0;
+  const riskPremium=Math.min(4,Math.max(0,debtRatio-90)*s.debtRiskSlope);
+  const newDebtYield=Math.max(0,Math.min(20,s.yield+.7*(bankRate-initialBankRate)+riskPremium));
+  if(t>0)effective+=(newDebtYield/100-effective)/s.maturity;
   const interest=t===0?d.interest:Math.max(0,debt)*effective;
   const spending=sum(Object.values(categories))+interest+s.hidden*price;
   const borrowing=spending-receipts;
@@ -69,7 +86,16 @@ function simulate(d,p,settings,years){
   const nominalGrowth=t===0?0:gdp/prevGdp-1;
   const snowball=t===0?0:(interest/gdp-openingDebt/prevGdp*nominalGrowth/(1+nominalGrowth))*100;
   const primaryContribution=-primaryBalance/gdp*100;
-  rows.push({primaryBalance,nominalGrowth,snowball,primaryContribution,fiscalLevel:demand,year:d.year+t,receipts,spending,borrowing,debt,openingDebt,interest,gdp,realGdp,price,growth,inflation,population:nPop,young,working,old,categories,effective,refinancing:Math.max(0,openingDebt)/s.maturity,grossFunding:Math.max(0,openingDebt)/s.maturity+borrowing});
+  if(t>0){
+   unemployment=Math.max(2,Math.min(25,unemployment-s.okunResponse*(growth-s.growth)));
+   const sterlingMove=.18*(bankRate-s.neutralRate)-.28*(inflation-s.inflationTarget)-.55*riskPremium-.08*Math.max(0,priorBorrowingRatio-4);
+   sterlingIndex=Math.max(35,Math.min(140,sterlingIndex*(1+sterlingMove/100)));
+   bankStress=Math.max(0,Math.min(100,bankStress*.72+Math.max(0,bankRate-4)*3+Math.max(0,-growth)*5+Math.max(0,unemployment-6)*2+riskPremium*7));
+   householdStress=Math.max(0,Math.min(100,householdStress*.76+Math.max(0,bankRate-4)*3.5+Math.max(0,unemployment-5)*3+Math.max(0,inflation-4)*1.5));
+   marketConfidence=Math.max(0,Math.min(100,85-riskPremium*13-Math.max(0,borrowing/gdp*100-4)*3-Math.max(0,inflation-4)*2));
+  }
+  priorBorrowingRatio=borrowing/gdp*100;
+  rows.push({primaryBalance,nominalGrowth,snowball,primaryContribution,fiscalLevel:demand,year:d.year+t,receipts,spending,borrowing,debt,openingDebt,interest,gdp,realGdp,price,growth,inflation,bankRate,newDebtYield,riskPremium,unemployment,sterlingIndex,bankStress,householdStress,marketConfidence,shockEvent,shockGrowth,shockInflation,population:nPop,young,working,old,categories,effective,refinancing:Math.max(0,openingDebt)/s.maturity,grossFunding:Math.max(0,openingDebt)/s.maturity+borrowing});
   prevGdp=gdp;
  }
  return rows;
@@ -79,10 +105,11 @@ const OBR_WEIGHTS={tax:[.33,.30,.23,.14,.05,0],ame:[.60,.57,.43,.23,.07,0],rdel:
 function fiscalLevel(d,p,s,t){
  if(t<1||t>6)return 0;
  const i=t-1,capital=(p.spend.economic||0)*s.capitalShare;
- const transfers=p.spend.social||0;
- const current=sum(Object.values(p.spend))-capital-transfers+(s.hidden||0);
+ const rawTransfers=p.spend.social||0,transfers=rawTransfers*(s.targeting==='targeted'?1.25:1);
+ const current=sum(Object.values(p.spend))-capital-rawTransfers+(s.hidden||0);
  const tax=sum(Object.values(p.tax))+sum(p.custom.map(c=>c.base*c.rate/100*c.compliance/100));
- return s.multiplierScale*(capital*OBR_WEIGHTS.cdel[i]+current*OBR_WEIGHTS.rdel[i]+transfers*OBR_WEIGHTS.ame[i]-tax*OBR_WEIGHTS.tax[i])/d.gdp;
+ const stateScale=Math.max(.6,Math.min(1.4,1-.1*s.outputGap));
+ return s.multiplierScale*stateScale*(capital*OBR_WEIGHTS.cdel[i]+current*OBR_WEIGHTS.rdel[i]+transfers*OBR_WEIGHTS.ame[i]-tax*OBR_WEIGHTS.tax[i])/d.gdp;
 }
 function sensitivity(d,p,s,years,runs=300){
  let seed=s.seed>>>0;
