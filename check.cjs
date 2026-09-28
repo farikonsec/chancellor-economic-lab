@@ -65,3 +65,14 @@ for(const id of ['hyperinflation-risk','depression','banking-crisis','debt-crisi
 const healthy=simulate(d,p,{...DEFAULTS,growth:2,inflation:2},5);assert(ctx.gameRules.economicConditions(healthy).some(x=>x.id==='soft-landing'));
 assert(ctx.gameRules.immediatePolicyEvents(d,{tax:{},spend:{defence:500},custom:[]}).some(x=>x.id==='instant-fiscal-crash'&&x.severe));
 console.log('PASS: game regime rules detect systemic losses and positive soft landings.');
+vm.runInContext(fs.readFileSync(dir+'quarterly.js','utf8')+';globalThis.quarterlyApi={quarterlyInitial,quarterlyStep,quarterlyScore,scheduledQuarterlyShock,QUARTERLY_SHOCKS};',ctx);
+const qapi=ctx.quarterlyApi,qstart=qapi.quarterlyInitial(d,{...DEFAULTS,outputGap:0},'resilience');let qstate=qstart;
+for(let q=1;q<=20;q++){const prior=qstate;qstate=qapi.quarterlyStep(qstate,d,p,DEFAULTS,{});assert(Object.values(qstate).filter(v=>typeof v==='number').every(Number.isFinite));assert(Math.abs(qstate.debt-prior.debt-qstate.borrowing/4)<1e-8);}
+assert.strictEqual(qstate.quarter,20);assert(qstate.bankRate>=0&&qstate.bankRate<=18);assert(qstate.unemployment>=2&&qstate.unemployment<=25);
+const calm=qapi.quarterlyStep(qstart,d,p,DEFAULTS,{}),energy=qapi.quarterlyStep(qstart,d,p,DEFAULTS,{shock:qapi.QUARTERLY_SHOCKS.energy});
+assert(energy.inflation>calm.inflation);assert(energy.householdStress>calm.householdStress);assert(energy.marketConfidence<calm.marketConfidence);
+const scheduledA=qapi.scheduledQuarterlyShock('resilience',2,2026,true),scheduledB=qapi.scheduledQuarterlyShock('resilience',2,999,true);assert.strictEqual(scheduledA.id,'energy-crunch');assert.strictEqual(scheduledA.id,scheduledB.id);
+const qscore=qapi.quarterlyScore(qstate,qstart,{growth:-20,inflation:40,unemployment:30,debt:300});assert(qscore.score>=0&&qscore.score<=1000);assert(Object.values(qscore.met).every(Boolean));
+assert(qapi.quarterlyScore({...qstart,inflation:31},qstart,{}).lost,'inflation crisis must end the government');
+for(const [mission,quarters]of [['sandbox',20],['recovery',20],['stability',40],['resilience',40]]){let state=qapi.quarterlyInitial(d,{...DEFAULTS,shockMode:'events'},mission);for(let q=1;q<=quarters;q++){const event=qapi.scheduledQuarterlyShock(mission,q,2026,true);state=qapi.quarterlyStep(state,d,p,{...DEFAULTS,shockMode:'events'},{shock:event});const game=qapi.quarterlyScore(state,qstart,{growth:-20,inflation:40,unemployment:30,debt:300,termQuarters:quarters});if(quarters===40&&q<40)assert(!game.won,'ten-year mission must not end after five years');}assert.strictEqual(state.quarter,quarters);}
+console.log('PASS: quarterly stock-flow identity, bounded feedbacks, shock transmission, mission schedules and target scoring.');

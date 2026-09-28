@@ -5,7 +5,7 @@ const MISSIONS=[
  {id:'stability',code:'02',name:'Debt stabiliser',brief:'Rates are restrictive and fiscal space is narrow. Put debt on a safer path.',years:10,settings:{outputGap:1,shockMode:'none'},goals:['Debt below unchanged policy','Borrowing below unchanged policy','Protect core services']},
  {id:'resilience',code:'03',name:'Shock-proof Britain',brief:'A seeded sequence of downturn, energy and productivity risks may arrive.',years:10,settings:{outputGap:0,shockMode:'events'},goals:['Debt below 110%','Inflation within 1.5pp of target','No deep service cuts']}
 ];
-let activeMission='sandbox',missionsOpen=true;
+let activeMission='sandbox',missionsOpen=false;
 const storage={get(k,f){try{return JSON.parse(localStorage.getItem(k))??f}catch{return f}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
 let playerName=storage.get('chancellor-player','');
 const clampScore=n=>Math.max(0,Math.min(100,Math.round(n)));
@@ -77,13 +77,13 @@ function renderMissions(){
  const player=playerName?`<div class="player-bar"><span>Playing as <b>${esc(playerName)}</b></span><button id="changePlayer">Change</button><button id="scoreboard">Scoreboard</button></div>`:`<div class="player-setup"><label for="playerName"><b>Choose your Chancellor nickname</b><span>Your scores stay on this device.</span></label><input id="playerName" maxlength="18" placeholder="Nickname" autocomplete="nickname"><button class="primary" id="savePlayer">Take office →</button><button id="scoreboard">Scoreboard</button></div>`;
  const hudState=game?(game.lost?'GOVERNMENT FALLS':passed===false?'MISSION MISSED':game.won?'YOU WIN':passed===true?'MISSION ACHIEVED':'MANDATE IN PROGRESS'):'';
  const hud=game?`<div class="game-hud ${game.lost?'lost':passed===false?'missed':game.won?'won':''}"><div><span>CHANCELLOR SCORE</span><strong>${game.points}</strong><small>/ 1,000</small></div><div class="score-track"><i style="width:${game.points/10}%"></i><b style="left:25%">LOSE 250</b><b style="left:70%">WIN 700</b></div><em>${hudState}</em><button class="hud-restart" id="hudRestart">↺ Start again</button></div>`:`<div class="game-rules"><b>Start 500</b><span>Good growth, stable prices, jobs, services and sustainable debt earn points.</span><span><strong>Win 700</strong> · Lose at 250 or after a systemic crisis.</span></div>`;
- root.innerHTML=`${player}${hud}<div class="mission-head"><div><div class="eyebrow">CHANCELLOR'S BRIEF</div><h2>${m.name}</h2><p>${m.brief}</p></div><button id="toggleMissions" aria-expanded="${missionsOpen}">${missionsOpen?'Hide briefs −':'Choose a mission +'}</button></div>${missionsOpen?`<div class="mission-grid">${MISSIONS.map(x=>`<button class="mission-card ${x.id===activeMission?'selected':''}" data-mission="${x.id}"><span>${x.code}</span><strong>${x.name}</strong><small>${x.goals[0]}</small></button>`).join('')}</div><div class="mission-goals">${m.goals.map(g=>`<span>✓ ${g}</span>`).join('')}</div>`:''}`;
+ root.innerHTML=`${player}${hud}<div class="mission-head"><div><div class="eyebrow">CHANCELLOR'S BRIEF</div><h2>${m.name}</h2><p>${m.brief}</p></div><button id="toggleMissions" aria-expanded="${missionsOpen}">${missionsOpen?'Hide briefs −':'Choose a mission +'}</button></div>${missionsOpen?`<div class="mission-grid">${MISSIONS.map(x=>`<button class="mission-card ${x.id===activeMission?'selected':''}" data-mission="${x.id}"><span>${x.code}</span><strong>${x.name}</strong><small>${x.goals[0]}</small></button>`).join('')}</div>`:''}<div class="mission-goals">${m.goals.map(g=>`<span>✓ ${g}</span>`).join('')}</div>`;
  if($('#savePlayer')){$('#savePlayer').onclick=savePlayer;$('#playerName').onkeydown=e=>{if(e.key==='Enter')savePlayer();};}
  if($('#changePlayer'))$('#changePlayer').onclick=()=>{playerName='';storage.set('chancellor-player','');renderMissions();};
  if($('#scoreboard'))$('#scoreboard').onclick=openScoreboard;
  $('#toggleMissions').onclick=()=>{missionsOpen=!missionsOpen;renderMissions();};
  if($('#hudRestart'))$('#hudRestart').onclick=startAgain;
- root.querySelectorAll('[data-mission]').forEach(b=>b.onclick=()=>{const next=MISSIONS.find(x=>x.id===b.dataset.mission);activeMission=next.id;horizon=next.years;Object.assign(settings,next.settings);result=null;baseline=null;$('#run').textContent=`▶ Run ${horizon} years`;missionsOpen=false;render();toast(`${next.name} loaded · build your budget`);});
+ root.querySelectorAll('[data-mission]').forEach(b=>b.onclick=()=>{const next=MISSIONS.find(x=>x.id===b.dataset.mission);activeMission=next.id;horizon=next.years;Object.assign(settings,next.settings);result=null;baseline=null;if(typeof resetQuarterlyCampaign==='function')resetQuarterlyCampaign();$('#run').textContent=`▶ Forecast ${horizon} years`;missionsOpen=false;render();toast(`${next.name} loaded · build your budget`);});
 }
 function missionResult(r,b,s){
  const debt=r.debt/r.gdp*100,baseDebt=b.debt/b.gdp*100,pc=(r.realGdp/r.population/(b.realGdp/b.population)-1)*100;
